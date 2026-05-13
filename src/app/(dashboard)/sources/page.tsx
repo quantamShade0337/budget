@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Plug, RefreshCw, Mail, FileText, Settings, Plus } from "lucide-react";
 import { useSanity } from "@/lib/store";
 import { AnimatedButton } from "@/components/ui/animated-button";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import type { SourceConnection, SourceType } from "@/lib/types";
 
 const SOURCE_ICONS: Record<string, React.ReactNode> = {
@@ -225,13 +226,15 @@ function Action({
 
 export default function SourcesPage() {
   const { data } = useSanity();
-  const [selected, setSelected] = useState<SourceConnection | null>(null);
+  const panel = useDetailPanel<SourceConnection>();
   const [connectType, setConnectType] = useState<SourceType | null>(null);
 
-  const liveSelected = selected ? data.sources.find((s) => s.id === selected.id) ?? null : null;
+  const liveSelected = panel.rendered
+    ? data.sources.find((s) => s.id === panel.rendered!.id) ?? null
+    : null;
 
   return (
-    <div className="flex h-full overflow-hidden" onClick={() => setSelected(null)}>
+    <div className="flex h-full overflow-hidden" onClick={() => panel.close()}>
       <div className="flex-1 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutral-100 px-8 py-4">
           <h1 className="text-[15px] font-semibold text-neutral-900">Sources</h1>
@@ -252,9 +255,10 @@ export default function SourcesPage() {
                     key={src.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelected(isSelected ? null : src);
+                      panel.toggle(src);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left ${
+                    style={{ animationDelay: `${i * 30}ms` }}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left animate-row-fade-in ${
                       isSelected ? "bg-neutral-50" : ""
                     } ${i < data.sources.length - 1 ? "border-b border-neutral-100" : ""}`}
                   >
@@ -315,10 +319,12 @@ export default function SourcesPage() {
 
       {liveSelected && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden ${
+            panel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <SourceDetailPanel source={liveSelected} onClose={() => setSelected(null)} />
+          <SourceDetailPanel source={liveSelected} onClose={panel.close} />
         </div>
       )}
 

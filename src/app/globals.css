@@ -168,6 +168,18 @@
   70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
+@keyframes slide-out-right {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(12px); opacity: 0; }
+}
+@keyframes row-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .animate-slide-in-right { animation: slide-in-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .animate-fade-in { animation: fade-in 180ms ease-out; }
@@ -175,6 +187,15 @@
 .animate-check-pop { animation: check-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
 .animate-slide-up-fade { animation: slide-up-fade 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .animate-pulse-ring { animation: pulse-ring 1.8s ease-in-out infinite; }
+.animate-slide-out-right { animation: slide-out-right 200ms cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+.animate-row-fade-in { animation: row-fade-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-page-fade-in { animation: page-fade-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Row hover lift on interactive surfaces */
+.row-lift {
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms;
+}
+.row-lift:hover { transform: translateY(-0.5px); }
 
 /* Subtle text rendering */
 .tabular-nums { font-variant-numeric: tabular-nums; }

@@ -1,7 +1,9 @@
 "use client";
 
-import { X, Building2, History, Tag, Repeat2, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { X, Building2, History, Tag, Repeat2, Trash2, ChevronDown } from "lucide-react";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
+import { BucketDot } from "@/components/ui/bucket-dot";
 import { formatCurrency } from "@/lib/calculations";
 import { useSanity } from "@/lib/store";
 import type { Transaction } from "@/lib/types";
@@ -29,7 +31,9 @@ interface TransactionDetailPanelProps {
 }
 
 export function TransactionDetailPanel({ transaction: txn, onClose }: TransactionDetailPanelProps) {
-  const { removeTransaction } = useSanity();
+  const { removeTransaction, data } = useSanity();
+  const defaultCurrency = data.spendingPlan.currency;
+  const [showMore, setShowMore] = useState(false);
   const date = new Date(txn.date);
   const dateStr = date.toLocaleDateString("en-SG", {
     month: "long",
@@ -62,7 +66,7 @@ export function TransactionDetailPanel({ transaction: txn, onClose }: Transactio
           {dateStr} · {timeStr}
         </p>
         <p className="text-[32px] font-semibold text-neutral-900 mt-5 tabular-nums leading-none">
-          {formatCurrency(txn.amount, txn.currency)}
+          {formatCurrency(txn.amount, txn.currency, { defaultCurrency })}
         </p>
       </div>
 
@@ -85,24 +89,6 @@ export function TransactionDetailPanel({ transaction: txn, onClose }: Transactio
           </span>
         </DetailRow>
 
-        <DetailRow label="Source">
-          <span className="text-[13px] text-neutral-700 capitalize">{txn.source}</span>
-        </DetailRow>
-
-        <DetailRow label="Confidence">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-14 bg-neutral-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full"
-                style={{ width: `${txn.confidence * 100}%` }}
-              />
-            </div>
-            <span className="text-[11px] text-neutral-400 tabular-nums">
-              {Math.round(txn.confidence * 100)}%
-            </span>
-          </div>
-        </DetailRow>
-
         {txn.categoryName && (
           <DetailRow label="Category">
             <span className="text-[13px] text-neutral-700">{txn.categoryName}</span>
@@ -110,7 +96,7 @@ export function TransactionDetailPanel({ transaction: txn, onClose }: Transactio
         )}
 
         <DetailRow label="Bucket">
-          <span className="text-[13px] text-neutral-700">{BUCKET_LABELS[txn.bucket]}</span>
+          <BucketDot bucket={txn.bucket} showLabel size="sm" />
         </DetailRow>
 
         {txn.note && (
@@ -119,21 +105,77 @@ export function TransactionDetailPanel({ transaction: txn, onClose }: Transactio
           </DetailRow>
         )}
 
+        {/* More details disclosure */}
+        <button
+          onClick={() => setShowMore((s) => !s)}
+          className="w-full flex items-center justify-between py-1 group"
+        >
+          <span className="text-[11px] text-neutral-400 group-hover:text-neutral-700 transition-colors">
+            {showMore ? "Hide details" : "More details"}
+          </span>
+          <ChevronDown
+            className={`w-3 h-3 text-neutral-400 group-hover:text-neutral-700 transition-all duration-200 ${
+              showMore ? "rotate-180" : ""
+            }`}
+            strokeWidth={2}
+          />
+        </button>
+
+        <div
+          className="overflow-hidden transition-all duration-300 ease-out"
+          style={{
+            maxHeight: showMore ? "200px" : "0px",
+            opacity: showMore ? 1 : 0,
+          }}
+        >
+          <div className="space-y-2.5 pt-1">
+            <DetailRow label="Status">
+              <span
+                className={cn(
+                  "text-[11px] font-medium px-2 py-0.5 rounded-full capitalize",
+                  STATUS_STYLES[txn.status] ?? "text-neutral-500 bg-neutral-100"
+                )}
+              >
+                {txn.status}
+              </span>
+            </DetailRow>
+            <DetailRow label="Source">
+              <span className="text-[13px] text-neutral-700 capitalize">{txn.source}</span>
+            </DetailRow>
+            <DetailRow label="Confidence">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-14 bg-neutral-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full"
+                    style={{
+                      width: showMore ? `${txn.confidence * 100}%` : "0%",
+                      transition: "width 600ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] text-neutral-400 tabular-nums">
+                  {Math.round(txn.confidence * 100)}%
+                </span>
+              </div>
+            </DetailRow>
+          </div>
+        </div>
+
         {txn.subtotal != null && (
           <div className="pt-3 mt-2 border-t border-neutral-100">
             <DetailRow label="Subtotal">
               <span className="text-[13px] tabular-nums text-neutral-700">
-                {formatCurrency(txn.subtotal, txn.currency)}
+                {formatCurrency(txn.subtotal, txn.currency, { defaultCurrency })}
               </span>
             </DetailRow>
             <DetailRow label="Tax">
               <span className="text-[13px] tabular-nums text-neutral-700">
-                {formatCurrency(txn.tax ?? 0, txn.currency)}
+                {formatCurrency(txn.tax ?? 0, txn.currency, { defaultCurrency })}
               </span>
             </DetailRow>
             <DetailRow label="Total">
               <span className="text-[13px] tabular-nums font-semibold text-neutral-900">
-                {formatCurrency(txn.amount, txn.currency)}
+                {formatCurrency(txn.amount, txn.currency, { defaultCurrency })}
               </span>
             </DetailRow>
           </div>

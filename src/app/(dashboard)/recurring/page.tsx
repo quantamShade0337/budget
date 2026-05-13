@@ -5,14 +5,16 @@ import { Plus } from "lucide-react";
 import { useSanity } from "@/lib/store";
 import { formatCurrency, getDaysUntil } from "@/lib/calculations";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import { RecurringDetailPanel } from "@/components/recurring/recurring-detail";
 import { AddRecurringModal } from "@/components/recurring/add-recurring-modal";
 import type { RecurringTransaction } from "@/lib/types";
 
 export default function RecurringPage() {
   const { data } = useSanity();
-  const [selected, setSelected] = useState<RecurringTransaction | null>(null);
+  const panel = useDetailPanel<RecurringTransaction>();
   const [addOpen, setAddOpen] = useState(false);
+  const defaultCurrency = data.spendingPlan.currency;
 
   const active = data.recurring
     .filter((r) => r.active)
@@ -22,7 +24,7 @@ export default function RecurringPage() {
     );
 
   return (
-    <div className="flex h-full overflow-hidden" onClick={() => setSelected(null)}>
+    <div className="flex h-full overflow-hidden" onClick={() => panel.close()}>
       <div className="flex-1 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutral-100 px-8 py-4 flex items-center justify-between">
           <h1 className="text-[15px] font-semibold text-neutral-900">Recurring</h1>
@@ -73,15 +75,16 @@ export default function RecurringPage() {
               {active.map((rec, i) => {
                 const days = getDaysUntil(rec.expectedNextDate);
                 const nextDate = new Date(rec.expectedNextDate);
-                const isSelected = selected?.id === rec.id;
+                const isSelected = panel.selected?.id === rec.id;
                 return (
                   <button
                     key={rec.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelected(isSelected ? null : rec);
+                      panel.toggle(rec);
                     }}
-                    className={`w-full grid grid-cols-[1fr_160px_120px] gap-4 items-center px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left ${
+                    style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                    className={`w-full grid grid-cols-[1fr_160px_120px] gap-4 items-center px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left animate-row-fade-in ${
                       isSelected ? "bg-neutral-50" : ""
                     } ${i < active.length - 1 ? "border-b border-neutral-100" : ""}`}
                   >
@@ -105,7 +108,7 @@ export default function RecurringPage() {
                       )}
                     </div>
                     <span className="text-[14px] tabular-nums font-medium text-neutral-900 text-right">
-                      {formatCurrency(rec.amount, rec.currency)}
+                      {formatCurrency(rec.amount, rec.currency, { defaultCurrency })}
                     </span>
                   </button>
                 );
@@ -115,12 +118,14 @@ export default function RecurringPage() {
         </div>
       </div>
 
-      {selected && (
+      {panel.rendered && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden ${
+            panel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <RecurringDetailPanel recurring={selected} onClose={() => setSelected(null)} />
+          <RecurringDetailPanel recurring={panel.rendered} onClose={panel.close} />
         </div>
       )}
 

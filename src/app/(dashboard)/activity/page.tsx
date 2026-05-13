@@ -5,6 +5,8 @@ import { Search, Plus } from "lucide-react";
 import { useSanity } from "@/lib/store";
 import { formatCurrency } from "@/lib/calculations";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
+import { BucketDot } from "@/components/ui/bucket-dot";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import { TransactionDetailPanel } from "@/components/activity/transaction-detail";
 import { AddTransactionModal } from "@/components/activity/add-transaction-modal";
 import type { Transaction } from "@/lib/types";
@@ -27,9 +29,10 @@ function groupByMonth(transactions: Transaction[]) {
 
 export default function ActivityPage() {
   const { data } = useSanity();
-  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const panel = useDetailPanel<Transaction>();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const defaultCurrency = data.spendingPlan.currency;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data.transactions;
@@ -48,7 +51,7 @@ export default function ActivityPage() {
   const grouped = groupByMonth(sorted);
 
   return (
-    <div className="flex h-full overflow-hidden" onClick={() => setSelectedTxn(null)}>
+    <div className="flex h-full overflow-hidden" onClick={() => panel.close()}>
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutral-100 px-8 py-4 flex items-center justify-between">
@@ -105,23 +108,27 @@ export default function ActivityPage() {
                 <div className="bg-white border border-neutral-200/70 rounded-xl overflow-hidden">
                   {transactions.map((txn, i) => {
                     const date = new Date(txn.date);
-                    const isSelected = selectedTxn?.id === txn.id;
+                    const isSelected = panel.selected?.id === txn.id;
                     return (
                       <button
                         key={txn.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedTxn(isSelected ? null : txn);
+                          panel.toggle(txn);
                         }}
-                        className={`w-full grid grid-cols-[1fr_180px_120px_110px] gap-4 items-center px-4 py-3 hover:bg-neutral-50/80 transition-colors text-left ${
+                        style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                        className={`w-full grid grid-cols-[1fr_180px_120px_110px] gap-4 items-center px-4 py-3 hover:bg-neutral-50/80 transition-colors text-left animate-row-fade-in ${
                           isSelected ? "bg-neutral-50" : ""
                         } ${i < transactions.length - 1 ? "border-b border-neutral-100" : ""}`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <MerchantIcon name={txn.merchantName} size="sm" />
-                          <span className="text-[14px] font-medium text-neutral-900 truncate">
-                            {txn.merchantName}
-                          </span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[14px] font-medium text-neutral-900 truncate">
+                              {txn.merchantName}
+                            </span>
+                            <BucketDot bucket={txn.bucket} />
+                          </div>
                         </div>
                         <span className="text-[13px] text-neutral-500 truncate">
                           {txn.accountLast4
@@ -136,7 +143,7 @@ export default function ActivityPage() {
                           })}
                         </span>
                         <span className="text-[14px] tabular-nums font-medium text-neutral-900 text-right">
-                          {formatCurrency(txn.amount, txn.currency)}
+                          {formatCurrency(txn.amount, txn.currency, { defaultCurrency })}
                         </span>
                       </button>
                     );
@@ -148,15 +155,14 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      {selectedTxn && (
+      {panel.rendered && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden ${
+            panel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <TransactionDetailPanel
-            transaction={selectedTxn}
-            onClose={() => setSelectedTxn(null)}
-          />
+          <TransactionDetailPanel transaction={panel.rendered} onClose={panel.close} />
         </div>
       )}
 

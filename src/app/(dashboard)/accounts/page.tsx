@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useSanity } from "@/lib/store";
 import { formatCurrency } from "@/lib/calculations";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import { AccountDetailPanel } from "@/components/accounts/account-detail";
 import { AddAccountModal } from "@/components/accounts/add-account-modal";
 import type { Account } from "@/lib/types";
@@ -20,13 +21,16 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function AccountsPage() {
   const { data } = useSanity();
-  const [selected, setSelected] = useState<Account | null>(null);
+  const panel = useDetailPanel<Account>();
   const [addOpen, setAddOpen] = useState(false);
 
   const accounts = data.accounts;
+  const defaultCurrency = data.spendingPlan.currency;
 
-  // Re-derive selected from current data
-  const liveSelected = selected ? accounts.find((a) => a.id === selected.id) ?? null : null;
+  // Re-derive selected from current data so balance changes propagate
+  const liveSelected = panel.rendered
+    ? accounts.find((a) => a.id === panel.rendered!.id) ?? null
+    : null;
 
   const bankAccounts = accounts.filter((a) => ["savings", "current"].includes(a.type));
   const cards = accounts.filter((a) => ["debit", "credit"].includes(a.type));
@@ -41,7 +45,7 @@ export default function AccountsPage() {
   ].filter((s) => s.accounts.length > 0);
 
   return (
-    <div className="flex h-full overflow-hidden" onClick={() => setSelected(null)}>
+    <div className="flex h-full overflow-hidden" onClick={() => panel.close()}>
       <div className="flex-1 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutral-100 px-8 py-4 flex items-center justify-between">
           <h1 className="text-[15px] font-semibold text-neutral-900">Accounts</h1>
@@ -85,14 +89,16 @@ export default function AccountsPage() {
                   {list.map((acc, i) => {
                     const available = Math.max(0, acc.currentBalance - acc.protectedBalance);
                     const isSelected = liveSelected?.id === acc.id;
+                    const updated = new Date(acc.balanceUpdatedAt);
                     return (
                       <button
                         key={acc.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelected(isSelected ? null : acc);
+                          panel.toggle(acc);
                         }}
-                        className={`w-full flex items-center gap-4 px-4 py-4 hover:bg-neutral-50/80 transition-colors text-left ${
+                        style={{ animationDelay: `${i * 30}ms` }}
+                        className={`group w-full flex items-center gap-4 px-4 py-4 hover:bg-neutral-50/80 transition-colors text-left animate-row-fade-in ${
                           isSelected ? "bg-neutral-50" : ""
                         } ${i < list.length - 1 ? "border-b border-neutral-100" : ""}`}
                       >
@@ -112,18 +118,24 @@ export default function AccountsPage() {
                               </span>
                             )}
                           </p>
-                          <p className="text-[12px] text-neutral-400 mt-0.5">
-                            {acc.bankName} · {TYPE_LABELS[acc.type]}
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-[12px] text-neutral-400">
+                              {acc.bankName} · {TYPE_LABELS[acc.type]}
+                            </p>
+                            <span className="text-[11px] text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                              · Updated{" "}
+                              {updated.toLocaleDateString("en-SG", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="text-right shrink-0">
                           <p className="text-[14px] font-medium tabular-nums text-neutral-900">
-                            {formatCurrency(acc.currentBalance, acc.currency)}
+                            {formatCurrency(acc.currentBalance, acc.currency, { defaultCurrency })}
                           </p>
                           {acc.protectedBalance > 0 && (
                             <p className="text-[11px] tabular-nums text-neutral-400 mt-0.5">
-                              {formatCurrency(available, acc.currency)} available
+                              {formatCurrency(available, acc.currency, { defaultCurrency })} available
                             </p>
                           )}
                         </div>
@@ -139,10 +151,12 @@ export default function AccountsPage() {
 
       {liveSelected && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden ${
+            panel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <AccountDetailPanel account={liveSelected} onClose={() => setSelected(null)} />
+          <AccountDetailPanel account={liveSelected} onClose={panel.close} />
         </div>
       )}
 

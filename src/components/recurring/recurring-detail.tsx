@@ -1,6 +1,7 @@
 "use client";
 
-import { X, Globe, BellOff, Tag, History, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { X, Globe, BellOff, Tag, History, Trash2, ChevronDown } from "lucide-react";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
 import { formatCurrency, getDaysUntil } from "@/lib/calculations";
 import { useSanity } from "@/lib/store";
@@ -12,7 +13,9 @@ interface RecurringDetailPanelProps {
 }
 
 export function RecurringDetailPanel({ recurring: rec, onClose }: RecurringDetailPanelProps) {
-  const { removeRecurring } = useSanity();
+  const { removeRecurring, data } = useSanity();
+  const defaultCurrency = data.spendingPlan.currency;
+  const [showMore, setShowMore] = useState(false);
   const nextDate = new Date(rec.expectedNextDate);
   const days = getDaysUntil(rec.expectedNextDate);
 
@@ -33,7 +36,7 @@ export function RecurringDetailPanel({ recurring: rec, onClose }: RecurringDetai
         <h2 className="text-[15px] font-semibold text-neutral-900">{rec.merchantName}</h2>
         <p className="text-[12px] text-neutral-400 mt-1">{rec.name}</p>
         <p className="text-[32px] font-semibold text-neutral-900 mt-5 tabular-nums leading-none">
-          {formatCurrency(rec.amount, rec.currency)}
+          {formatCurrency(rec.amount, rec.currency, { defaultCurrency })}
         </p>
         <p className="text-[12px] text-neutral-400 mt-1">/ {rec.interval.replace("ly", "")}</p>
       </div>
@@ -52,29 +55,54 @@ export function RecurringDetailPanel({ recurring: rec, onClose }: RecurringDetai
           </span>
         </Row>
 
-        <Row label="Detected from">
-          <span className="text-[13px] text-neutral-700">{rec.detectedFromCount} transactions</span>
-        </Row>
-
         {rec.categoryName && (
           <Row label="Category">
             <span className="text-[13px] text-neutral-700">{rec.categoryName}</span>
           </Row>
         )}
 
-        <Row label="Confidence">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-14 bg-neutral-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full"
-                style={{ width: `${rec.confidence * 100}%` }}
-              />
-            </div>
-            <span className="text-[11px] text-neutral-400 tabular-nums">
-              {Math.round(rec.confidence * 100)}%
-            </span>
+        {/* More details disclosure */}
+        <button
+          onClick={() => setShowMore((s) => !s)}
+          className="w-full flex items-center justify-between py-1 group"
+        >
+          <span className="text-[11px] text-neutral-400 group-hover:text-neutral-700 transition-colors">
+            {showMore ? "Hide details" : "More details"}
+          </span>
+          <ChevronDown
+            className={`w-3 h-3 text-neutral-400 group-hover:text-neutral-700 transition-all duration-200 ${
+              showMore ? "rotate-180" : ""
+            }`}
+            strokeWidth={2}
+          />
+        </button>
+
+        <div
+          className="overflow-hidden transition-all duration-300 ease-out"
+          style={{ maxHeight: showMore ? "120px" : "0px", opacity: showMore ? 1 : 0 }}
+        >
+          <div className="space-y-2.5 pt-1">
+            <Row label="Detected from">
+              <span className="text-[13px] text-neutral-700">{rec.detectedFromCount} transactions</span>
+            </Row>
+            <Row label="Confidence">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-14 bg-neutral-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full"
+                    style={{
+                      width: showMore ? `${rec.confidence * 100}%` : "0%",
+                      transition: "width 600ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] text-neutral-400 tabular-nums">
+                  {Math.round(rec.confidence * 100)}%
+                </span>
+              </div>
+            </Row>
           </div>
-        </Row>
+        </div>
       </div>
 
       <div className="border-t border-neutral-100 px-5 py-4 space-y-1.5">

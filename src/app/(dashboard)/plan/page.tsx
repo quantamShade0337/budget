@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, PencilLine, Check } from "lucide-react";
 import { useSanity } from "@/lib/store";
+import { CountUp } from "@/components/ui/count-up";
 import {
   calculateSafeToSpend,
   formatCurrency,
@@ -125,7 +126,10 @@ export default function PlanPage() {
               </div>
             ) : (
               <p className="text-[24px] font-semibold text-neutral-900 tabular-nums mt-1 leading-none">
-                {formatCurrency(plan.monthlyIncome, currency)}
+                <CountUp
+                  value={plan.monthlyIncome}
+                  format={(n) => formatCurrency(n, currency, { defaultCurrency: currency })}
+                />
               </p>
             )}
           </div>
@@ -155,34 +159,34 @@ export default function PlanPage() {
                     </div>
                     <div className="text-right">
                       <span className="text-[13px] tabular-nums text-neutral-900 font-medium">
-                        {formatCurrency(b.spent, currency)}
+                        {formatCurrency(b.spent, currency, { defaultCurrency: currency })}
                       </span>
                       <span className="text-[11px] text-neutral-400 ml-1.5">
-                        / {formatCurrency(b.budget, currency)}
+                        / {formatCurrency(b.budget, currency, { defaultCurrency: currency })}
                       </span>
                     </div>
                   </div>
 
                   <p className="text-[11px] text-neutral-400 mb-2.5">{b.description}</p>
 
-                  <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden mb-2">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${over ? "bg-red-400" : b.barColor}`}
-                      style={{ width: `${Math.min(100, pct)}%` }}
-                    />
-                  </div>
+                  <PlanBar
+                    pct={Math.min(100, pct)}
+                    over={over}
+                    colorClass={b.barColor}
+                    delayMs={i * 80}
+                  />
 
                   <div className="flex items-center justify-between">
                     {over ? (
                       <div className="flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 text-red-400" strokeWidth={2} />
                         <span className="text-[11px] text-red-500">
-                          {formatCurrency(b.spent - b.budget, currency)} over
+                          {formatCurrency(b.spent - b.budget, currency, { defaultCurrency: currency })} over
                         </span>
                       </div>
                     ) : (
                       <span className="text-[11px] text-neutral-400 tabular-nums">
-                        {formatCurrency(remaining, currency)} remaining
+                        {formatCurrency(remaining, currency, { defaultCurrency: currency })} remaining
                       </span>
                     )}
                     <span className="text-[11px] text-neutral-400 tabular-nums">
@@ -206,32 +210,65 @@ export default function PlanPage() {
             <div className="px-5 py-4 space-y-3">
               <BRow
                 label="Available above protected"
-                value={formatCurrency(spendable, currency)}
+                value={formatCurrency(spendable, currency, { defaultCurrency: currency })}
               />
               <BRow
                 label="− Upcoming recurring"
-                value={`−${formatCurrency(breakdown.upcomingRecurringTotal, currency)}`}
+                value={`−${formatCurrency(breakdown.upcomingRecurringTotal, currency, { defaultCurrency: currency })}`}
               />
               <BRow
                 label="− Remaining needs"
-                value={`−${formatCurrency(breakdown.remainingNeedsEstimate, currency)}`}
+                value={`−${formatCurrency(breakdown.remainingNeedsEstimate, currency, { defaultCurrency: currency })}`}
               />
               <BRow
                 label="− Savings target"
-                value={`−${formatCurrency(breakdown.remainingSavingsTarget, currency)}`}
+                value={`−${formatCurrency(breakdown.remainingSavingsTarget, currency, { defaultCurrency: currency })}`}
               />
 
               <div className="pt-3 border-t border-neutral-100">
-                <BRow
-                  label="Safe to spend"
-                  value={formatCurrency(breakdown.safeToSpend, currency)}
-                  bold
-                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-semibold text-neutral-900">Safe to spend</span>
+                  <span className="tabular-nums text-[15px] font-semibold text-neutral-900">
+                    <CountUp
+                      value={breakdown.safeToSpend}
+                      format={(n) => formatCurrency(n, currency, { defaultCurrency: currency })}
+                    />
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PlanBar({
+  pct,
+  over,
+  colorClass,
+  delayMs = 0,
+}: {
+  pct: number;
+  over: boolean;
+  colorClass: string;
+  delayMs?: number;
+}) {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setW(pct), 60 + delayMs);
+    return () => clearTimeout(t);
+  }, [pct, delayMs]);
+  return (
+    <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden mb-2">
+      <div
+        className={`h-full rounded-full ${over ? "bg-red-400" : colorClass}`}
+        style={{
+          width: `${w}%`,
+          transition: "width 750ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        }}
+      />
     </div>
   );
 }

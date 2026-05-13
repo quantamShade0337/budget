@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useSanity } from "@/lib/store";
 import { formatCurrency } from "@/lib/calculations";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import { MerchantDetailPanel } from "@/components/merchants/merchant-detail";
 import type { Merchant, Currency } from "@/lib/types";
 
 export default function MerchantsPage() {
   const { data } = useSanity();
-  const [selected, setSelected] = useState<Merchant | null>(null);
+  const panel = useDetailPanel<Merchant>();
+  const defaultCurrency = data.spendingPlan.currency;
 
   // Derive merchants from actual transactions so totals stay accurate
   const derived = useMemo<Merchant[]>(() => {
@@ -41,7 +43,7 @@ export default function MerchantsPage() {
   }, [data.transactions]);
 
   return (
-    <div className="flex h-full overflow-hidden" onClick={() => setSelected(null)}>
+    <div className="flex h-full overflow-hidden" onClick={() => panel.close()}>
       <div className="flex-1 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutral-100 px-8 py-4">
           <h1 className="text-[15px] font-semibold text-neutral-900">Merchants</h1>
@@ -70,15 +72,16 @@ export default function MerchantsPage() {
               </div>
 
               {derived.map((m, i) => {
-                const isSelected = selected?.id === m.id;
+                const isSelected = panel.selected?.id === m.id;
                 return (
                   <button
                     key={m.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelected(isSelected ? null : m);
+                      panel.toggle(m);
                     }}
-                    className={`w-full grid grid-cols-[1fr_120px_120px] gap-4 items-center px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left ${
+                    style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                    className={`w-full grid grid-cols-[1fr_120px_120px] gap-4 items-center px-4 py-3.5 hover:bg-neutral-50/80 transition-colors text-left animate-row-fade-in ${
                       isSelected ? "bg-neutral-50" : ""
                     } ${i < derived.length - 1 ? "border-b border-neutral-100" : ""}`}
                   >
@@ -95,7 +98,7 @@ export default function MerchantsPage() {
                       {m.transactionCount}
                     </span>
                     <span className="text-[14px] tabular-nums font-medium text-neutral-900 text-right">
-                      {formatCurrency(m.totalSpent, m.currency)}
+                      {formatCurrency(m.totalSpent, m.currency, { defaultCurrency })}
                     </span>
                   </button>
                 );
@@ -105,12 +108,14 @@ export default function MerchantsPage() {
         </div>
       </div>
 
-      {selected && (
+      {panel.rendered && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-hidden ${
+            panel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <MerchantDetailPanel merchant={selected} onClose={() => setSelected(null)} />
+          <MerchantDetailPanel merchant={panel.rendered} onClose={panel.close} />
         </div>
       )}
     </div>

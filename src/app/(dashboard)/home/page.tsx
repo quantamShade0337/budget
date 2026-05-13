@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, AlertCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import { useSanity } from "@/lib/store";
@@ -14,12 +14,20 @@ import {
   getMonthlyBucketSpend,
 } from "@/lib/calculations";
 import { MerchantIcon } from "@/components/ui/merchant-icon";
+import { CountUp } from "@/components/ui/count-up";
+import { BucketDot } from "@/components/ui/bucket-dot";
+import { useDetailPanel } from "@/components/ui/use-detail-panel";
 import type { Transaction } from "@/lib/types";
 import { TransactionDetailPanel } from "@/components/activity/transaction-detail";
 
 export default function HomePage() {
   const { data } = useSanity();
-  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const txnPanel = useDetailPanel<Transaction>();
+  const selectedTxn = txnPanel.selected;
+  const setSelectedTxn = (t: Transaction | null) => {
+    if (t) txnPanel.toggle(t);
+    else txnPanel.close();
+  };
 
   const now = new Date();
   const year = now.getFullYear();
@@ -79,35 +87,40 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-3 mb-3">
             <StatCard
               label="Safe to spend"
-              value={formatCurrency(breakdown.safeToSpend, currency)}
+              amount={breakdown.safeToSpend}
+              currency={currency}
+              defaultCurrency={currency}
               hint={
                 breakdown.safeToSpend === 0 && breakdown.upcomingRecurringTotal > spendable ? (
                   <span className="inline-flex items-center gap-1 text-amber-600">
                     <AlertCircle className="w-3 h-3" strokeWidth={2} />
-                    {formatCurrency(breakdown.upcomingRecurringTotal - spendable, currency)} below
-                    buffer
+                    {formatCurrency(breakdown.upcomingRecurringTotal - spendable, currency, { defaultCurrency: currency })} below buffer
                   </span>
                 ) : (
-                  `${formatCurrency(totalProtected, currency)} protected`
+                  `${formatCurrency(totalProtected, currency, { defaultCurrency: currency })} protected`
                 )
               }
             />
             <StatCard
               label="Total balance"
-              value={formatCurrency(totalBalance, currency)}
-              hint={`${formatCurrency(spendable, currency)} above protected`}
+              amount={totalBalance}
+              currency={currency}
+              defaultCurrency={currency}
+              hint={`${formatCurrency(spendable, currency, { defaultCurrency: currency })} above protected`}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-10">
             <StatCard
               label="This month"
-              value={formatCurrency(totalSpentThisMonth, currency)}
+              amount={totalSpentThisMonth}
+              currency={currency}
+              defaultCurrency={currency}
               hint={
                 totalSpentThisMonth > 0
                   ? [
-                      needsSpent > 0 && `${formatCurrency(needsSpent, currency)} needs`,
-                      wantsSpent > 0 && `${formatCurrency(wantsSpent, currency)} wants`,
+                      needsSpent > 0 && `${formatCurrency(needsSpent, currency, { defaultCurrency: currency })} needs`,
+                      wantsSpent > 0 && `${formatCurrency(wantsSpent, currency, { defaultCurrency: currency })} wants`,
                     ]
                       .filter(Boolean)
                       .join(" · ")
@@ -116,7 +129,9 @@ export default function HomePage() {
             />
             <StatCard
               label="Upcoming"
-              value={formatCurrency(breakdown.upcomingRecurringTotal, currency)}
+              amount={breakdown.upcomingRecurringTotal}
+              currency={currency}
+              defaultCurrency={currency}
               hint={`${data.recurring.filter((r) => r.active).length} active`}
             />
           </div>
@@ -139,21 +154,25 @@ export default function HomePage() {
               {recentTxns.map((txn, i) => (
                 <Row
                   key={txn.id}
-                  selected={selectedTxn?.id === txn.id}
+                  selected={txnPanel.selected?.id === txn.id}
                   isLast={i === recentTxns.length - 1}
+                  staggerIndex={i}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedTxn(txn.id === selectedTxn?.id ? null : txn);
+                    txnPanel.toggle(txn);
                   }}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <MerchantIcon name={txn.merchantName} size="sm" />
-                    <span className="text-[14px] font-medium text-neutral-900 truncate">
-                      {txn.merchantName}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[14px] font-medium text-neutral-900 truncate">
+                        {txn.merchantName}
+                      </span>
+                      <BucketDot bucket={txn.bucket} />
+                    </div>
                   </div>
                   <span className="text-[14px] tabular-nums text-neutral-700 font-medium">
-                    {formatCurrency(txn.amount, txn.currency)}
+                    {formatCurrency(txn.amount, txn.currency, { defaultCurrency: currency })}
                   </span>
                 </Row>
               ))}
@@ -178,7 +197,11 @@ export default function HomePage() {
               {upcomingRecurring.map((rec, i) => {
                 const days = getDaysUntil(rec.expectedNextDate);
                 return (
-                  <Row key={rec.id} isLast={i === upcomingRecurring.length - 1}>
+                  <Row
+                    key={rec.id}
+                    isLast={i === upcomingRecurring.length - 1}
+                    staggerIndex={i}
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <MerchantIcon name={rec.merchantName} size="sm" />
                       <span className="text-[14px] font-medium text-neutral-900 truncate">
@@ -190,7 +213,7 @@ export default function HomePage() {
                         {days <= 0 ? "today" : `${days} days`}
                       </span>
                       <span className="text-[14px] tabular-nums text-neutral-700 font-medium">
-                        {formatCurrency(rec.amount, rec.currency)}
+                        {formatCurrency(rec.amount, rec.currency, { defaultCurrency: currency })}
                       </span>
                     </div>
                   </Row>
@@ -232,16 +255,11 @@ export default function HomePage() {
                       <div className="flex items-center justify-between mb-2.5">
                         <span className="text-[13px] text-neutral-700">{row.label}</span>
                         <span className="text-[12px] tabular-nums text-neutral-400">
-                          {formatCurrency(row.spent, currency)} ·{" "}
-                          {formatCurrency(row.budget, currency)}
+                          {formatCurrency(row.spent, currency, { defaultCurrency: currency })} ·{" "}
+                          {formatCurrency(row.budget, currency, { defaultCurrency: currency })}
                         </span>
                       </div>
-                      <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${row.color}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                      <AnimatedBar pct={pct} colorClass={row.color} delayMs={i * 60} />
                     </div>
                   );
                 })}
@@ -251,14 +269,16 @@ export default function HomePage() {
         </div>
       </div>
 
-      {selectedTxn && (
+      {txnPanel.rendered && (
         <div
-          className="w-[360px] shrink-0 border-l border-neutral-200/70 overflow-y-auto animate-slide-in-right"
+          className={`w-[360px] shrink-0 border-l border-neutral-200/70 overflow-y-auto ${
+            txnPanel.closing ? "animate-slide-out-right" : "animate-slide-in-right"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
           <TransactionDetailPanel
-            transaction={selectedTxn}
-            onClose={() => setSelectedTxn(null)}
+            transaction={txnPanel.rendered}
+            onClose={txnPanel.close}
           />
         </div>
       )}
@@ -269,10 +289,16 @@ export default function HomePage() {
 function StatCard({
   label,
   value,
+  amount,
+  currency,
+  defaultCurrency,
   hint,
 }: {
   label: string;
-  value: string;
+  value?: string;
+  amount?: number;
+  currency?: string;
+  defaultCurrency?: string;
   hint?: React.ReactNode;
 }) {
   return (
@@ -281,7 +307,14 @@ function StatCard({
         {label}
       </p>
       <p className="text-[22px] font-semibold text-neutral-900 tabular-nums leading-none">
-        {value}
+        {amount != null && currency ? (
+          <CountUp
+            value={amount}
+            format={(n) => formatCurrency(n, currency, { defaultCurrency })}
+          />
+        ) : (
+          value
+        )}
       </p>
       {hint && <p className="text-[12px] text-neutral-500 mt-2">{hint}</p>}
     </div>
@@ -332,22 +365,52 @@ function Row({
   isLast,
   selected,
   onClick,
+  staggerIndex = 0,
 }: {
   children: React.ReactNode;
   isLast?: boolean;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  staggerIndex?: number;
 }) {
   const Cmp = onClick ? "button" : "div";
   return (
     <Cmp
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+      style={{ animationDelay: `${staggerIndex * 30}ms` }}
+      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors animate-row-fade-in ${
         onClick ? "hover:bg-neutral-50/80 cursor-pointer" : ""
       } ${selected ? "bg-neutral-50" : ""} ${!isLast ? "border-b border-neutral-100" : ""}`}
     >
       {children}
     </Cmp>
+  );
+}
+
+function AnimatedBar({
+  pct,
+  colorClass,
+  delayMs = 0,
+}: {
+  pct: number;
+  colorClass: string;
+  delayMs?: number;
+}) {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => setW(pct), 60 + delayMs);
+    return () => clearTimeout(id);
+  }, [pct, delayMs]);
+  return (
+    <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full ${colorClass}`}
+        style={{
+          width: `${w}%`,
+          transition: "width 700ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        }}
+      />
+    </div>
   );
 }
 

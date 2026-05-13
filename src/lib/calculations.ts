@@ -105,10 +105,18 @@ export function calculateSafeToSpend(
   };
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  SGD: "$",
+  USD: "$",
+  MYR: "RM",
+  GBP: "£",
+  EUR: "€",
+};
+
 export function formatCurrency(
   amount: number,
   currency: string,
-  options?: { compact?: boolean; showPlus?: boolean }
+  options?: { compact?: boolean; showPlus?: boolean; defaultCurrency?: string }
 ): string {
   const absAmount = Math.abs(amount);
   const formatted = new Intl.NumberFormat("en-SG", {
@@ -120,7 +128,23 @@ export function formatCurrency(
   }).format(absAmount);
 
   const prefix = options?.showPlus && amount > 0 ? "+" : amount < 0 ? "-" : "";
+
+  // When currency matches the user's default, use a simple symbol (no code)
+  if (options?.defaultCurrency && currency === options.defaultCurrency) {
+    const sym = CURRENCY_SYMBOLS[currency] ?? "";
+    return `${prefix}${sym}${formatted}`;
+  }
+
   return `${prefix}${currency} ${formatted}`;
+}
+
+export function formatAmount(
+  amount: number,
+  currency: string,
+  defaultCurrency: string,
+  options?: { compact?: boolean; showPlus?: boolean }
+): string {
+  return formatCurrency(amount, currency, { ...options, defaultCurrency });
 }
 
 export function getBudgetProgress(spent: number, budget: number): number {
