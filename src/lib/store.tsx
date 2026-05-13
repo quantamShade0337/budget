@@ -9,7 +9,10 @@ import type {
   SpendingPlan,
   SourceConnection,
   User,
+  MonogramConfig,
 } from "./types";
+
+export const DEFAULT_MONOGRAM: MonogramConfig = { bgColor: "#16a34a" };
 
 export interface SanityData {
   user: User | null;
@@ -50,6 +53,7 @@ interface SanityContextValue {
   data: SanityData;
   ready: boolean;
   setUser: (u: User) => void;
+  setMonogram: (m: MonogramConfig) => void;
   addAccount: (a: Omit<Account, "id" | "userId" | "balanceUpdatedAt">) => Account;
   updateAccount: (id: string, patch: Partial<Account>) => void;
   removeAccount: (id: string) => void;
@@ -101,7 +105,14 @@ export function SanityProvider({ children }: { children: React.ReactNode }) {
   }, [data, ready]);
 
   const setUser = useCallback((u: User) => {
-    setData((d) => ({ ...d, user: u }));
+    setData((d) => ({
+      ...d,
+      user: { ...u, monogram: u.monogram ?? DEFAULT_MONOGRAM },
+    }));
+  }, []);
+
+  const setMonogram = useCallback((m: MonogramConfig) => {
+    setData((d) => (d.user ? { ...d, user: { ...d.user, monogram: m } } : d));
   }, []);
 
   const addAccount = useCallback<SanityContextValue["addAccount"]>((a) => {
@@ -197,6 +208,7 @@ export function SanityProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       setUser,
+      setMonogram,
       addAccount,
       updateAccount,
       removeAccount,
@@ -215,6 +227,7 @@ export function SanityProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       setUser,
+      setMonogram,
       addAccount,
       updateAccount,
       removeAccount,

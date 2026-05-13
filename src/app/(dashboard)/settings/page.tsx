@@ -13,6 +13,7 @@ import {
   LogOut,
   Mail,
   Palette,
+  Pencil,
   Plug,
   ShieldCheck,
   Trash2,
@@ -20,19 +21,25 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { useSanity, computeInitials } from "@/lib/store";
+import { useSanity, computeInitials, DEFAULT_MONOGRAM } from "@/lib/store";
 import { clearStoredGoogleToken } from "@/lib/google-firebase-auth";
+import { Monogram } from "@/components/ui/monogram";
+import { MonogramPicker } from "@/components/ui/monogram-picker";
+import { AnimatedButton } from "@/components/ui/animated-button";
 
 export default function SettingsPage() {
-  const { data, setUser, reset } = useSanity();
+  const { data, setUser, setMonogram, reset } = useSanity();
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(data.user?.name ?? "");
+  const [picking, setPicking] = useState(false);
 
   const userName = data.user?.name ?? "Local user";
   const userEmail = data.user?.email ?? "No email saved";
   const initials = data.user?.initials || computeInitials(userName) || "S";
+  const monoLetter = userName?.[0] ?? "?";
+  const monoConfig = data.user?.monogram ?? DEFAULT_MONOGRAM;
   const hasGmail = data.sources.some((source) => source.type === "gmail");
 
   const saveName = () => {
@@ -72,14 +79,21 @@ export default function SettingsPage() {
 
         <div className="max-w-2xl mx-auto px-8 py-8 space-y-7">
           <div className="bg-white border border-neutral-200/70 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-900 text-white flex items-center justify-center text-[16px] font-semibold shrink-0">
-              {initials}
-            </div>
+            <button
+              onClick={() => setPicking(true)}
+              className="relative group shrink-0"
+              aria-label="Edit monogram"
+            >
+              <Monogram letter={monoLetter} config={monoConfig} size="xl" interactive />
+              <span className="absolute -bottom-1 -right-1 w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-sm">
+                <Pencil className="w-3 h-3 text-neutral-600" strokeWidth={2} />
+              </span>
+            </button>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold text-neutral-900 truncate">{userName}</p>
               <p className="text-[13px] text-neutral-500 truncate mt-0.5">{userEmail}</p>
               <p className="text-[12px] text-neutral-400 mt-2">
-                Your budget data is stored locally on this device.
+                Tap your monogram to change color or pick an emoji.
               </p>
             </div>
             <button
@@ -239,6 +253,15 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {picking && (
+        <MonogramPicker
+          initialConfig={monoConfig}
+          letter={monoLetter}
+          onSave={setMonogram}
+          onClose={() => setPicking(false)}
+        />
+      )}
+
       {confirmDelete && (
         <div
           className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4 animate-fade-in"
@@ -268,16 +291,17 @@ export default function SettingsPage() {
               >
                 Cancel
               </button>
-              <button
+              <AnimatedButton
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   clearStoredGoogleToken();
                   reset();
-                  router.replace("/login");
                 }}
-                className="h-9 px-4 text-[13px] font-medium text-white bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+                onSuccess={() => router.replace("/login")}
               >
                 Delete everything
-              </button>
+              </AnimatedButton>
             </div>
           </div>
         </div>

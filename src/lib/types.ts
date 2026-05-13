@@ -12,12 +12,18 @@ export type SourceType = "gmail" | "email" | "statement" | "manual";
 
 export type SourceStatus = "connected" | "disconnected" | "error" | "syncing";
 
+export interface MonogramConfig {
+  bgColor: string;
+  emoji?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   phone?: string;
   initials: string;
+  monogram?: MonogramConfig;
 }
 
 export interface Account {

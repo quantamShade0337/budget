@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useSanity } from "@/lib/store";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import type { TransactionBucket, Currency } from "@/lib/types";
 
 const BUCKETS: { value: TransactionBucket; label: string }[] = [
@@ -22,6 +23,8 @@ export function AddTransactionModal({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState("");
 
   const account = data.accounts.find((a) => a.id === accountId);
+
+  const canSubmit = merchantName.trim() && amount && account;
 
   const submit = () => {
     const amt = parseFloat(amount);
@@ -54,8 +57,6 @@ export function AddTransactionModal({ onClose }: { onClose: () => void }) {
       confidence: 1.0,
       verified: true,
     });
-
-    onClose();
   };
 
   return (
@@ -156,13 +157,14 @@ export function AddTransactionModal({ onClose }: { onClose: () => void }) {
           >
             Cancel
           </button>
-          <button
+          <AnimatedButton
             onClick={submit}
-            disabled={!merchantName.trim() || !amount || !account}
-            className="h-9 px-4 text-[13px] font-medium text-white bg-neutral-900 rounded-full hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            disabled={!canSubmit}
+            size="sm"
+            onSuccess={onClose}
           >
             Add transaction
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>

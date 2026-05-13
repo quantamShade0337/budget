@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { useSanity, computeInitials } from "@/lib/store";
+import { useSanity, computeInitials, DEFAULT_MONOGRAM } from "@/lib/store";
 import { SanityLogo } from "@/components/ui/sanity-logo";
 import { formatCurrency } from "@/lib/calculations";
 import type { AccountType, Currency } from "@/lib/types";
@@ -66,6 +66,7 @@ export default function OnboardingPage() {
       name: name.trim(),
       email: email.trim(),
       initials: computeInitials(name),
+      monogram: DEFAULT_MONOGRAM,
     });
     goNext();
   };

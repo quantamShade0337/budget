@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Plug, RefreshCw, Mail, FileText, Settings, Plus } from "lucide-react";
 import { useSanity } from "@/lib/store";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import type { SourceConnection, SourceType } from "@/lib/types";
 
 const SOURCE_ICONS: Record<string, React.ReactNode> = {
@@ -40,7 +41,6 @@ function ConnectModal({
       transactionsFound: 0,
       watchedSenders: type === "gmail" ? ["noreply@*", "receipts@*", "billing@*"] : undefined,
     });
-    onClose();
   };
   return (
     <div
@@ -78,13 +78,14 @@ function ConnectModal({
           >
             Cancel
           </button>
-          <button
+          <AnimatedButton
             onClick={submit}
             disabled={!label.trim()}
-            className="h-9 px-4 text-[13px] font-medium text-white bg-neutral-900 rounded-full hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+            size="sm"
+            onSuccess={onClose}
           >
             Connect
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>

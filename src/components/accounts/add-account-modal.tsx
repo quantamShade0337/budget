@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useSanity } from "@/lib/store";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import type { AccountType, Currency } from "@/lib/types";
 
 const TYPES: { value: AccountType; label: string }[] = [
@@ -41,8 +42,9 @@ export function AddAccountModal({ onClose }: { onClose: () => void }) {
       cardNetwork: type === "debit" || type === "credit" ? "visa" : undefined,
       color: "#0a0a0a",
     });
-    onClose();
   };
+
+  const canSubmit = Boolean(name.trim() && balance);
 
   return (
     <div
@@ -154,13 +156,14 @@ export function AddAccountModal({ onClose }: { onClose: () => void }) {
           >
             Cancel
           </button>
-          <button
+          <AnimatedButton
             onClick={submit}
-            disabled={!name.trim() || !balance}
-            className="h-9 px-4 text-[13px] font-medium text-white bg-neutral-900 rounded-full hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            disabled={!canSubmit}
+            size="sm"
+            onSuccess={onClose}
           >
             Add account
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>

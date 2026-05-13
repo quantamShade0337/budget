@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, RefreshCw, Lock, History, Activity, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/calculations";
 import { useSanity } from "@/lib/store";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import type { Account } from "@/lib/types";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,12 +29,10 @@ interface ValueModalProps {
 
 function ValueModal({ title, description, label, currency, initialValue, onSave, onClose }: ValueModalProps) {
   const [value, setValue] = useState(initialValue.toFixed(2));
+  const parsed = parseFloat(value);
+  const valid = !isNaN(parsed);
   const submit = () => {
-    const n = parseFloat(value);
-    if (!isNaN(n)) {
-      onSave(n);
-      onClose();
-    }
+    if (valid) onSave(parsed);
   };
   return (
     <div
@@ -64,7 +63,6 @@ function ValueModal({ title, description, label, currency, initialValue, onSave,
                 step="0.01"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
                 autoFocus
                 className="flex-1 text-[14px] text-neutral-900 outline-none tabular-nums"
               />
@@ -78,12 +76,9 @@ function ValueModal({ title, description, label, currency, initialValue, onSave,
           >
             Cancel
           </button>
-          <button
-            onClick={submit}
-            className="h-9 px-4 text-[13px] font-medium text-white bg-neutral-900 rounded-full hover:bg-neutral-800 transition-colors"
-          >
+          <AnimatedButton onClick={submit} disabled={!valid} size="sm" onSuccess={onClose}>
             Save
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>

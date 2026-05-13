@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useSanity } from "@/lib/store";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import type { TransactionBucket, RecurringInterval, Currency } from "@/lib/types";
 
 const BUCKETS: { value: TransactionBucket; label: string }[] = [
@@ -60,8 +61,9 @@ export function AddRecurringModal({ onClose }: { onClose: () => void }) {
       detectedFromCount: 1,
       bucket,
     });
-    onClose();
   };
+
+  const canSubmit = Boolean(merchantName.trim() && amount && account);
 
   return (
     <div
@@ -171,13 +173,14 @@ export function AddRecurringModal({ onClose }: { onClose: () => void }) {
           >
             Cancel
           </button>
-          <button
+          <AnimatedButton
             onClick={submit}
-            disabled={!merchantName.trim() || !amount || !account}
-            className="h-9 px-4 text-[13px] font-medium text-white bg-neutral-900 rounded-full hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            disabled={!canSubmit}
+            size="sm"
+            onSuccess={onClose}
           >
             Add recurring
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>
