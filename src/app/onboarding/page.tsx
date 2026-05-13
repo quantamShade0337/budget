@@ -249,7 +249,7 @@ export default function OnboardingPage() {
                       value={last4}
                       maxLength={4}
                       onChange={(e) => setLast4(e.target.value.replace(/\D/g, ""))}
-                      placeholder="2756"
+                      placeholder="1234"
                       className={inputStyle}
                     />
                   </Field>

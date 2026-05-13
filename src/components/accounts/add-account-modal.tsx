@@ -119,7 +119,7 @@ export function AddAccountModal({ onClose }: { onClose: () => void }) {
                 value={last4}
                 maxLength={4}
                 onChange={(e) => setLast4(e.target.value.replace(/\D/g, ""))}
-                placeholder="0000"
+                placeholder="1234"
                 className={inputStyle}
               />
             </Field>
