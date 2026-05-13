@@ -1,25 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
 import { SanityLogo } from "@/components/ui/sanity-logo";
 import { useSanity, computeInitials } from "@/lib/store";
-import { signInWithGoogleAndFirebase } from "@/lib/google-firebase-auth";
 
-export default function LoginPage() {
+const WORKOS_ENABLED = Boolean(process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI);
+
+function LoginInner() {
   const router = useRouter();
+  const search = useSearchParams();
   const sanity = useSanity();
   const [email, setEmail] = useState("");
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const workosEnabled = Boolean(process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI);
+  const errorParam = search.get("error");
+  const [showEmailFallback, setShowEmailFallback] = useState(!WORKOS_ENABLED);
+
+  const error =
+    errorParam === "workos_not_configured"
+      ? "WorkOS is not configured on this build. Use email to continue locally."
+      : null;
 
   useEffect(() => {
-    if (sanity.ready && sanity.data.onboarded) {
+    if (sanity.ready && sanity.data.onboarded && !errorParam) {
       router.replace("/home");
     }
-  }, [sanity.ready, sanity.data.onboarded, router]);
+  }, [sanity.ready, sanity.data.onboarded, errorParam, router]);
 
   const continueWithEmail = () => {
     if (!email.trim()) return;
@@ -34,30 +40,6 @@ export default function LoginPage() {
     router.push("/onboarding");
   };
 
-  const continueWithGoogle = async () => {
-    setAuthError(null);
-    setGoogleLoading(true);
-    try {
-      const { user } = await signInWithGoogleAndFirebase();
-      sanity.setUser(user);
-      if (!sanity.data.sources.some((source) => source.type === "gmail")) {
-        sanity.addSource({
-          type: "gmail",
-          label: "Gmail receipts",
-          status: "connected",
-          lastSyncedAt: new Date().toISOString(),
-          transactionsFound: 0,
-          watchedSenders: ["receipts", "billing", "orders"],
-        });
-      }
-      router.push(sanity.data.onboarded ? "/home" : "/onboarding");
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Google sign-in failed.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   if (!sanity.ready) return <div className="min-h-screen bg-[#fafafa]" />;
 
   return (
@@ -67,7 +49,7 @@ export default function LoginPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-6 -mt-12">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm animate-fade-in">
           <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight mb-2 text-center">
             Welcome to Sanity
           </h1>
@@ -76,51 +58,68 @@ export default function LoginPage() {
           </p>
 
           <div className="bg-white border border-neutral-200/70 rounded-2xl p-7">
-            <button
-              onClick={continueWithGoogle}
-              disabled={googleLoading}
-              className="w-full h-11 flex items-center justify-center gap-2.5 border border-neutral-200 rounded-full text-[14px] font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50 transition-colors"
-            >
-              <GoogleMark />
-              {googleLoading ? "Connecting..." : "Continue with Google"}
-            </button>
+            {error && (
+              <div className="mb-5 flex items-start gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
+                <span className="leading-relaxed">{error}</span>
+              </div>
+            )}
 
-            {workosEnabled && (
-              <a
-                href="/auth/workos/sign-in"
-                className="mt-3 w-full h-10 flex items-center justify-center border border-neutral-200 rounded-full text-[13px] font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+            {/* Primary: WorkOS */}
+            <a
+              href="/auth/workos/sign-in"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-neutral-900 text-white rounded-full text-[14px] font-medium hover:bg-neutral-800 transition-all group active:scale-[0.98]"
+              onClick={(e) => {
+                if (!WORKOS_ENABLED) {
+                  e.preventDefault();
+                  setShowEmailFallback(true);
+                }
+              }}
+            >
+              <ShieldCheck className="w-4 h-4" strokeWidth={2} />
+              Continue with WorkOS
+              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+            </a>
+
+            <p className="text-center text-[11px] text-neutral-400 mt-2">
+              Single sign-on via Google, Microsoft, Okta, and more.
+            </p>
+
+            {/* Email fallback */}
+            {!showEmailFallback ? (
+              <button
+                onClick={() => setShowEmailFallback(true)}
+                className="block mx-auto mt-5 text-[12px] text-neutral-400 hover:text-neutral-700 transition-colors"
               >
-                Continue with WorkOS
-              </a>
+                Use email instead
+              </button>
+            ) : (
+              <div className="mt-5 animate-fade-in">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1 h-px bg-neutral-100" />
+                  <span className="text-[11px] text-neutral-400">or continue with email</span>
+                  <div className="flex-1 h-px bg-neutral-100" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  onKeyDown={(e) => e.key === "Enter" && continueWithEmail()}
+                  className="w-full h-11 px-4 border border-neutral-200 rounded-full text-[14px] text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-900/5 transition-all mb-2"
+                />
+                <button
+                  onClick={continueWithEmail}
+                  disabled={!email.trim()}
+                  className="w-full h-10 border border-neutral-200 text-neutral-700 rounded-full text-[13px] font-medium hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                >
+                  Continue locally
+                </button>
+                <p className="text-center text-[11px] text-neutral-400 mt-2 leading-relaxed">
+                  Your data stays only on this device.
+                </p>
+              </div>
             )}
-
-            {authError && (
-              <p className="mt-3 text-[12px] text-red-500 text-center leading-relaxed">{authError}</p>
-            )}
-
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-neutral-100" />
-              <span className="text-[11px] text-neutral-400">or</span>
-              <div className="flex-1 h-px bg-neutral-100" />
-            </div>
-
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              onKeyDown={(e) => e.key === "Enter" && continueWithEmail()}
-              className="w-full h-11 px-4 border border-neutral-200 rounded-full text-[14px] text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-900/5 transition-all mb-3"
-            />
-
-            <button
-              onClick={continueWithEmail}
-              disabled={!email.trim()}
-              className="w-full h-11 bg-neutral-900 text-white rounded-full text-[14px] font-medium hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 group"
-            >
-              Continue
-              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0" />
-            </button>
           </div>
 
           <p className="text-center text-[11px] text-neutral-400 mt-6 leading-relaxed">
@@ -140,25 +139,10 @@ export default function LoginPage() {
   );
 }
 
-function GoogleMark() {
+export default function LoginPage() {
   return (
-    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <path
-        d="M17.64 9.2a10.34 10.34 0 0 0-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
-        fill="#4285F4"
-      />
-      <path
-        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
-        fill="#34A853"
-      />
-      <path
-        d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
-        fill="#EA4335"
-      />
-    </svg>
+    <Suspense fallback={<div className="min-h-screen bg-[#fafafa]" />}>
+      <LoginInner />
+    </Suspense>
   );
 }

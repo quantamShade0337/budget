@@ -8,7 +8,7 @@ export async function GET() {
   }
 
   const signInUrl = await getSignInUrl({
-    state: JSON.stringify({ returnTo: "/onboarding" }),
+    state: JSON.stringify({ returnTo: "/auth/welcome" }),
   });
   redirect(signInUrl);
 }

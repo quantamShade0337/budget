@@ -52,10 +52,16 @@ export default function SettingsPage() {
     setEditingName(false);
   };
 
+  const workosEnabled = Boolean(process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI);
+
   const logout = () => {
     clearStoredGoogleToken();
     reset();
-    router.replace("/login");
+    if (workosEnabled) {
+      window.location.href = "/auth/workos/sign-out";
+    } else {
+      router.replace("/login");
+    }
   };
 
   const exportData = () => {
@@ -298,7 +304,13 @@ export default function SettingsPage() {
                   clearStoredGoogleToken();
                   reset();
                 }}
-                onSuccess={() => router.replace("/login")}
+                onSuccess={() => {
+                  if (workosEnabled) {
+                    window.location.href = "/auth/workos/sign-out";
+                  } else {
+                    router.replace("/login");
+                  }
+                }}
               >
                 Delete everything
               </AnimatedButton>
