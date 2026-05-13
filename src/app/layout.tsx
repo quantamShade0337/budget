@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { SanityProvider } from "@/lib/store";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
+import { WorkOSAuthBridge } from "@/components/auth/workos-auth-bridge";
+import { GmailReceiptScanner } from "@/lib/gmail-scanner";
+import { isWorkOSConfigured } from "@/lib/workos-config";
 
 export const metadata: Metadata = {
   title: "Sanity — Calm money",
@@ -19,10 +16,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const workosConfigured = isWorkOSConfigured();
+  const app = (
+    <SanityProvider>
+      <GmailReceiptScanner />
+      {workosConfigured && <WorkOSAuthBridge />}
+      {children}
+    </SanityProvider>
+  );
+
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className="h-full">
       <body className="h-full antialiased">
-        <SanityProvider>{children}</SanityProvider>
+        {workosConfigured ? <AuthKitProvider onSessionExpired={false}>{app}</AuthKitProvider> : app}
       </body>
     </html>
   );

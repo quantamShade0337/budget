@@ -25,7 +25,7 @@ export function AddRecurringModal({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(data.accounts[0]?.id ?? "");
   const [interval, setInterval] = useState<RecurringInterval>("monthly");
-  const [nextDate, setNextDate] = useState(
+  const [nextDate, setNextDate] = useState(() =>
     new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
   );
   const [bucket, setBucket] = useState<TransactionBucket>("wants");

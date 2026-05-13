@@ -1,9 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, LogOut, Trash2, X } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  ChevronRight,
+  Database,
+  Download,
+  Landmark,
+  LogOut,
+  Mail,
+  Palette,
+  Plug,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+  WalletCards,
+  X,
+} from "lucide-react";
 import { useSanity, computeInitials } from "@/lib/store";
+import { clearStoredGoogleToken } from "@/lib/google-firebase-auth";
 
 export default function SettingsPage() {
   const { data, setUser, reset } = useSanity();
@@ -12,8 +30,14 @@ export default function SettingsPage() {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(data.user?.name ?? "");
 
+  const userName = data.user?.name ?? "Local user";
+  const userEmail = data.user?.email ?? "No email saved";
+  const initials = data.user?.initials || computeInitials(userName) || "S";
+  const hasGmail = data.sources.some((source) => source.type === "gmail");
+
   const saveName = () => {
     if (!name.trim() || !data.user) {
+      setName(data.user?.name ?? "");
       setEditingName(false);
       return;
     }
@@ -22,8 +46,21 @@ export default function SettingsPage() {
   };
 
   const logout = () => {
+    clearStoredGoogleToken();
     reset();
     router.replace("/login");
+  };
+
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sanity-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -33,87 +70,171 @@ export default function SettingsPage() {
           <h1 className="text-[15px] font-semibold text-neutral-900">Settings</h1>
         </div>
 
-        <div className="max-w-lg mx-auto px-8 py-8 space-y-6">
-          <Section title="Account">
-            <Row label="Name">
+        <div className="max-w-2xl mx-auto px-8 py-8 space-y-7">
+          <div className="bg-white border border-neutral-200/70 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-neutral-900 text-white flex items-center justify-center text-[16px] font-semibold shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold text-neutral-900 truncate">{userName}</p>
+              <p className="text-[13px] text-neutral-500 truncate mt-0.5">{userEmail}</p>
+              <p className="text-[12px] text-neutral-400 mt-2">
+                Your budget data is stored locally on this device.
+              </p>
+            </div>
+            <button
+              onClick={() => setEditingName(true)}
+              className="h-9 px-4 rounded-full border border-neutral-200 text-[13px] text-neutral-700 hover:bg-neutral-50 transition-colors shrink-0"
+            >
+              Edit profile
+            </button>
+          </div>
+
+          <Section
+            icon={<UserRound className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            title="Profile"
+            description="The name and contact details shown across Sanity."
+          >
+            <Row label="Display name" helper="Used for your sidebar, greeting, and avatar.">
               {editingName ? (
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={saveName}
-                  onKeyDown={(e) => e.key === "Enter" && saveName()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveName();
+                    if (e.key === "Escape") {
+                      setName(data.user?.name ?? "");
+                      setEditingName(false);
+                    }
+                  }}
                   autoFocus
                   className="text-[13px] text-neutral-900 outline-none bg-transparent text-right"
                 />
               ) : (
-                <Value onClick={() => setEditingName(true)}>{data.user?.name}</Value>
+                <Value onClick={() => setEditingName(true)}>{userName}</Value>
               )}
             </Row>
             <RowDivider />
-            <Row label="Email">
-              <Value>{data.user?.email}</Value>
+            <Row label="Email" helper="Used for sign-in and account recovery.">
+              <Value>{userEmail}</Value>
             </Row>
             <RowDivider />
-            <Row label="Phone">
-              <Value>{data.user?.phone ?? "—"}</Value>
+            <Row label="Phone" helper="Optional. Not required for this local setup.">
+              <Value>{data.user?.phone ?? "Not added"}</Value>
             </Row>
           </Section>
 
-          <Section title="Security">
-            <RowLink label="Notifications" />
+          <Section
+            icon={<Plug className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            title="Connections"
+            description="Manage where transactions and receipts come from."
+          >
+            <ActionLink
+              href="/sources"
+              icon={<Mail className="w-4 h-4" strokeWidth={1.75} />}
+              label="Gmail receipt scanning"
+              helper={hasGmail ? "Connected. Scans recent receipts after refresh." : "Connect Google to scan receipts."}
+              value={hasGmail ? "On" : "Off"}
+            />
             <RowDivider />
-            <RowLink label="Apps and agents" />
-            <RowDivider />
-            <RowLink label="Passkeys" />
-            <RowDivider />
-            <RowLink label="Login activity" />
+            <ActionLink
+              href="/sources"
+              icon={<Plug className="w-4 h-4" strokeWidth={1.75} />}
+              label="Connected sources"
+              helper="Email, statement, Gmail, and manual imports."
+              value={String(data.sources.length)}
+            />
           </Section>
 
-          <Section title="Data">
-            <Row label="Connected sources">
-              <Value>{data.sources.length}</Value>
-            </Row>
+          <Section
+            icon={<Database className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            title="Data"
+            description="Review your local data and export a backup."
+          >
+            <ActionLink
+              href="/accounts"
+              icon={<Landmark className="w-4 h-4" strokeWidth={1.75} />}
+              label="Accounts"
+              helper="Bank accounts, cards, cash, wallets, and investments."
+              value={String(data.accounts.length)}
+            />
             <RowDivider />
-            <Row label="Accounts">
-              <Value>{data.accounts.length}</Value>
-            </Row>
+            <ActionLink
+              href="/activity"
+              icon={<Activity className="w-4 h-4" strokeWidth={1.75} />}
+              label="Transactions"
+              helper="All imported and manually added spending activity."
+              value={String(data.transactions.length)}
+            />
             <RowDivider />
-            <Row label="Transactions">
-              <Value>{data.transactions.length}</Value>
-            </Row>
-            <RowDivider />
-            <RowLink label="Export data" />
+            <ActionButton
+              icon={<Download className="w-4 h-4" strokeWidth={1.75} />}
+              label="Export data"
+              helper="Download a JSON backup of everything on this device."
+              onClick={exportData}
+            />
           </Section>
 
-          <Section title="Preferences">
-            <Row label="Currency">
+          <Section
+            icon={<WalletCards className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            title="Budget preferences"
+            description="Defaults used for budgets, balances, and display."
+          >
+            <Row label="Currency" helper="Used by your monthly plan.">
               <Value>{data.spendingPlan.currency}</Value>
             </Row>
             <RowDivider />
-            <Row label="Time zone">
-              <Value>Asia/Singapore</Value>
+            <Row label="Monthly plan" helper="Fixed split for needs, wants, and savings.">
+              <Value>
+                {data.spendingPlan.needsPercent}/{data.spendingPlan.wantsPercent}/
+                {data.spendingPlan.savingsPercent}
+              </Value>
             </Row>
             <RowDivider />
-            <Row label="Theme">
+            <Row label="Theme" helper="Visual theme for the app.">
               <Value>System</Value>
             </Row>
           </Section>
 
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 h-9 px-4 text-[13px] text-neutral-700 border border-neutral-200 rounded-full hover:bg-neutral-50 transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" strokeWidth={1.75} />
-              Log out
-            </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-1.5 h-9 px-4 text-[13px] text-red-500 border border-red-100 rounded-full hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
-              Delete all data
-            </button>
+          <Section
+            icon={<ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            title="Security"
+            description="Auth and notification controls coming next."
+          >
+            <ComingSoonRow icon={<Bell className="w-4 h-4" strokeWidth={1.75} />} label="Notifications" />
+            <RowDivider />
+            <ComingSoonRow icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.75} />} label="Passkeys" />
+            <RowDivider />
+            <ComingSoonRow icon={<Palette className="w-4 h-4" strokeWidth={1.75} />} label="Login activity" />
+          </Section>
+
+          <div className="bg-white border border-red-100 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <p className="text-[14px] font-semibold text-neutral-900">Session & device data</p>
+                <p className="text-[13px] text-neutral-500 mt-1 leading-relaxed">
+                  Log out clears this local session. Deleting data removes all saved accounts,
+                  transactions, sources, and settings from this device.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 h-9 px-4 text-[13px] text-neutral-700 border border-neutral-200 rounded-full hover:bg-neutral-50 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" strokeWidth={1.75} />
+                Log out
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 h-9 px-4 text-[13px] text-red-500 border border-red-100 rounded-full hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+                Delete all data
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -137,8 +258,8 @@ export default function SettingsPage() {
               </button>
             </div>
             <p className="px-6 pb-5 text-[13px] text-neutral-500">
-              This removes all accounts, transactions, and settings from this device. This action
-              can&apos;t be undone.
+              This removes all accounts, transactions, sources, and settings from this device. This
+              action can&apos;t be undone.
             </p>
             <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2 bg-neutral-50/50">
               <button
@@ -149,6 +270,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={() => {
+                  clearStoredGoogleToken();
                   reset();
                   router.replace("/login");
                 }}
@@ -164,34 +286,133 @@ export default function SettingsPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div>
-      <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-[0.08em] mb-2 px-1">
-        {title}
-      </p>
+    <section>
+      <div className="flex items-center gap-2 px-1 mb-2">
+        <span className="w-6 h-6 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center">
+          {icon}
+        </span>
+        <div>
+          <p className="text-[12px] font-semibold text-neutral-900">{title}</p>
+          <p className="text-[11px] text-neutral-400 mt-0.5">{description}</p>
+        </div>
+      </div>
       <div className="bg-white border border-neutral-200/70 rounded-xl overflow-hidden">
         {children}
       </div>
+    </section>
+  );
+}
+
+function Row({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3 min-h-[54px]">
+      <div className="min-w-0">
+        <span className="text-[13px] text-neutral-800">{label}</span>
+        {helper && <p className="text-[11px] text-neutral-400 mt-0.5 leading-relaxed">{helper}</p>}
+      </div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function ActionLink({
+  href,
+  icon,
+  label,
+  helper,
+  value,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  helper: string;
+  value: string;
+}) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 min-h-[44px]">
-      <span className="text-[13px] text-neutral-700">{label}</span>
-      <div>{children}</div>
-    </div>
+    <Link
+      href={href}
+      className="w-full flex items-center justify-between gap-4 px-4 py-3 min-h-[58px] hover:bg-neutral-50/80 transition-colors text-left"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-9 h-9 rounded-xl bg-neutral-50 border border-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium text-neutral-900">{label}</p>
+          <p className="text-[11px] text-neutral-400 mt-0.5 truncate">{helper}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-[12px] text-neutral-400 tabular-nums">{value}</span>
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-300" strokeWidth={1.75} />
+      </div>
+    </Link>
   );
 }
 
-function RowLink({ label }: { label: string }) {
+function ActionButton({
+  icon,
+  label,
+  helper,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  helper: string;
+  onClick: () => void;
+}) {
   return (
-    <button className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-neutral-50/80 transition-colors text-left">
-      <span className="text-[13px] text-neutral-700">{label}</span>
-      <ChevronRight className="w-3.5 h-3.5 text-neutral-300" strokeWidth={1.75} />
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-4 px-4 py-3 min-h-[58px] hover:bg-neutral-50/80 transition-colors text-left"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-9 h-9 rounded-xl bg-neutral-50 border border-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium text-neutral-900">{label}</p>
+          <p className="text-[11px] text-neutral-400 mt-0.5 truncate">{helper}</p>
+        </div>
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" strokeWidth={1.75} />
     </button>
+  );
+}
+
+function ComingSoonRow({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="w-full flex items-center justify-between gap-4 px-4 py-3 min-h-[54px] text-left">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-9 h-9 rounded-xl bg-neutral-50 border border-neutral-100 text-neutral-400 flex items-center justify-center shrink-0">
+          {icon}
+        </span>
+        <span className="text-[13px] text-neutral-700">{label}</span>
+      </div>
+      <span className="text-[11px] text-neutral-400 bg-neutral-50 border border-neutral-100 rounded-full px-2 py-0.5">
+        Coming soon
+      </span>
+    </div>
   );
 }
 
@@ -206,10 +427,10 @@ function Value({
   children: React.ReactNode;
   onClick?: () => void;
 }) {
-  const baseClass = "text-[13px] text-neutral-400 flex items-center gap-1.5";
+  const baseClass = "text-[13px] text-neutral-500 flex items-center gap-1.5";
   if (onClick) {
     return (
-      <button onClick={onClick} className={`${baseClass} hover:text-neutral-700 transition-colors`}>
+      <button onClick={onClick} className={`${baseClass} hover:text-neutral-800 transition-colors`}>
         {children}
         <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
       </button>

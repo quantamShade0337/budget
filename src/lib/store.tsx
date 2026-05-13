@@ -76,16 +76,21 @@ export function SanityProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let storedData: SanityData | null = null;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as SanityData;
         if (parsed.version === DATA_VERSION) {
-          setData({ ...DEFAULT_DATA, ...parsed });
+          storedData = { ...DEFAULT_DATA, ...parsed };
         }
       }
     } catch {}
-    setReady(true);
+
+    queueMicrotask(() => {
+      if (storedData) setData(storedData);
+      setReady(true);
+    });
   }, []);
 
   useEffect(() => {
