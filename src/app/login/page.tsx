@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { SanityLogo } from "@/components/ui/sanity-logo";
 import { useSanity, computeInitials } from "@/lib/store";
+import { signInWithGoogleAndFirebase } from "@/lib/google-firebase-auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const sanity = useSanity();
   const [email, setEmail] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const workosEnabled = Boolean(process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI);
 
   useEffect(() => {
     if (sanity.ready && sanity.data.onboarded) {
@@ -30,8 +34,28 @@ export default function LoginPage() {
     router.push("/onboarding");
   };
 
-  const continueWithGoogle = () => {
-    router.push("/onboarding");
+  const continueWithGoogle = async () => {
+    setAuthError(null);
+    setGoogleLoading(true);
+    try {
+      const { user } = await signInWithGoogleAndFirebase();
+      sanity.setUser(user);
+      if (!sanity.data.sources.some((source) => source.type === "gmail")) {
+        sanity.addSource({
+          type: "gmail",
+          label: "Gmail receipts",
+          status: "connected",
+          lastSyncedAt: new Date().toISOString(),
+          transactionsFound: 0,
+          watchedSenders: ["receipts", "billing", "orders"],
+        });
+      }
+      router.push(sanity.data.onboarded ? "/home" : "/onboarding");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Google sign-in failed.");
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   if (!sanity.ready) return <div className="min-h-screen bg-[#fafafa]" />;
@@ -54,11 +78,25 @@ export default function LoginPage() {
           <div className="bg-white border border-neutral-200/70 rounded-2xl p-7">
             <button
               onClick={continueWithGoogle}
-              className="w-full h-11 flex items-center justify-center gap-2.5 border border-neutral-200 rounded-full text-[14px] font-medium text-neutral-900 hover:bg-neutral-50 transition-colors"
+              disabled={googleLoading}
+              className="w-full h-11 flex items-center justify-center gap-2.5 border border-neutral-200 rounded-full text-[14px] font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50 transition-colors"
             >
               <GoogleMark />
-              Continue with Google
+              {googleLoading ? "Connecting..." : "Continue with Google"}
             </button>
+
+            {workosEnabled && (
+              <a
+                href="/auth/workos/sign-in"
+                className="mt-3 w-full h-10 flex items-center justify-center border border-neutral-200 rounded-full text-[13px] font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+              >
+                Continue with WorkOS
+              </a>
+            )}
+
+            {authError && (
+              <p className="mt-3 text-[12px] text-red-500 text-center leading-relaxed">{authError}</p>
+            )}
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-neutral-100" />
